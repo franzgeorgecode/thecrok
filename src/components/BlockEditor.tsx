@@ -35,6 +35,7 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
 }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [content, setContent] = useState(block.content);
+  const [menuSearch, setMenuSearch] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -46,6 +47,7 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setShowMenu(false);
+        setMenuSearch('');
       }
     };
 
@@ -57,6 +59,13 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showMenu]);
+
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = inputRef.current.scrollHeight + 'px';
+    }
+  }, [content]);
 
   const handleContentChange = (value: string) => {
     setContent(value);
@@ -73,6 +82,9 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
     } else if (e.key === 'Backspace' && content === '' && block.type === 'paragraph') {
       e.preventDefault();
       onDelete();
+    } else if (e.key === 'Escape' && showMenu) {
+      setShowMenu(false);
+      setMenuSearch('');
     }
   };
 
@@ -84,10 +96,18 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
         content: '',
         properties: { rows: [['', '', ''], ['', '', ''], ['', '', '']] }
       });
+    } else if (type === 'image') {
+      onUpdate({
+        ...block,
+        type,
+        content: '',
+        properties: { url: '' }
+      });
     } else {
       onUpdate({ ...block, type, content: '' });
     }
     setShowMenu(false);
+    setMenuSearch('');
     setTimeout(() => {
       inputRef.current?.focus();
     }, 0);
@@ -169,6 +189,44 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
     });
   };
 
+  const blockTypes = [
+    { 
+      category: 'BASIC BLOCKS',
+      items: [
+        { type: 'paragraph' as const, icon: <Type className="w-4 h-4" />, label: 'Text', desc: 'Just start writing with plain text', keywords: ['text', 'paragraph', 'plain'] },
+        { type: 'heading1' as const, icon: <Heading1 className="w-4 h-4" />, label: 'Heading 1', desc: 'Big section heading', keywords: ['h1', 'heading', 'title', 'large'] },
+        { type: 'heading2' as const, icon: <Heading2 className="w-4 h-4" />, label: 'Heading 2', desc: 'Medium section heading', keywords: ['h2', 'heading', 'subtitle', 'medium'] },
+        { type: 'heading3' as const, icon: <Heading3 className="w-4 h-4" />, label: 'Heading 3', desc: 'Small section heading', keywords: ['h3', 'heading', 'small'] },
+        { type: 'bulletList' as const, icon: <List className="w-4 h-4" />, label: 'Bulleted list', desc: 'Create a simple bulleted list', keywords: ['bullet', 'list', 'unordered', 'ul'] },
+        { type: 'numberedList' as const, icon: <ListOrdered className="w-4 h-4" />, label: 'Numbered list', desc: 'Create a list with numbering', keywords: ['number', 'list', 'ordered', 'ol'] },
+        { type: 'todo' as const, icon: <CheckSquare className="w-4 h-4" />, label: 'To-do list', desc: 'Track tasks with a to-do list', keywords: ['todo', 'task', 'checkbox', 'check'] },
+        { type: 'quote' as const, icon: <Quote className="w-4 h-4" />, label: 'Quote', desc: 'Capture a quote', keywords: ['quote', 'blockquote', 'citation'] },
+        { type: 'code' as const, icon: <Code className="w-4 h-4" />, label: 'Code', desc: 'Capture a code snippet', keywords: ['code', 'snippet', 'programming'] },
+        { type: 'divider' as const, icon: <Minus className="w-4 h-4" />, label: 'Divider', desc: 'Visually divide blocks', keywords: ['divider', 'separator', 'line', 'hr'] },
+      ]
+    },
+    {
+      category: 'MEDIA',
+      items: [
+        { type: 'image' as const, icon: <ImageIcon className="w-4 h-4" />, label: 'Image', desc: 'Upload or embed with a link', keywords: ['image', 'picture', 'photo', 'upload'] },
+        { type: 'table' as const, icon: <Table className="w-4 h-4" />, label: 'Table', desc: 'Add a table to organize data', keywords: ['table', 'grid', 'spreadsheet', 'data'] },
+      ]
+    }
+  ];
+
+  const filteredBlockTypes = blockTypes.map(category => ({
+    ...category,
+    items: category.items.filter(item => {
+      if (!menuSearch) return true;
+      const search = menuSearch.toLowerCase();
+      return (
+        item.label.toLowerCase().includes(search) ||
+        item.desc.toLowerCase().includes(search) ||
+        item.keywords.some(keyword => keyword.includes(search))
+      );
+    })
+  })).filter(category => category.items.length > 0);
+
   const renderBlock = () => {
     switch (block.type) {
       case 'heading1':
@@ -181,7 +239,6 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
             placeholder="Heading 1"
             disabled={!canEdit}
             className="w-full text-4xl font-bold outline-none resize-none overflow-hidden disabled:bg-transparent"
-            rows={1}
             style={{ minHeight: '3rem' }}
           />
         );
@@ -196,7 +253,6 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
             placeholder="Heading 2"
             disabled={!canEdit}
             className="w-full text-3xl font-bold outline-none resize-none overflow-hidden disabled:bg-transparent"
-            rows={1}
             style={{ minHeight: '2.5rem' }}
           />
         );
@@ -211,7 +267,6 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
             placeholder="Heading 3"
             disabled={!canEdit}
             className="w-full text-2xl font-bold outline-none resize-none overflow-hidden disabled:bg-transparent"
-            rows={1}
             style={{ minHeight: '2rem' }}
           />
         );
@@ -225,10 +280,9 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
               value={content}
               onChange={(e) => handleContentChange(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="List item"
+              placeholder="List"
               disabled={!canEdit}
               className="flex-1 outline-none resize-none overflow-hidden disabled:bg-transparent"
-              rows={1}
             />
           </div>
         );
@@ -242,10 +296,9 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
               value={content}
               onChange={(e) => handleContentChange(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="List item"
+              placeholder="List"
               disabled={!canEdit}
               className="flex-1 outline-none resize-none overflow-hidden disabled:bg-transparent"
-              rows={1}
             />
           </div>
         );
@@ -270,7 +323,6 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
               className={`flex-1 outline-none resize-none overflow-hidden disabled:bg-transparent ${
                 block.properties?.checked ? 'line-through text-gray-400' : ''
               }`}
-              rows={1}
             />
           </div>
         );
@@ -283,10 +335,9 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
               value={content}
               onChange={(e) => handleContentChange(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Quote"
+              placeholder="Empty quote"
               disabled={!canEdit}
               className="w-full italic outline-none resize-none overflow-hidden disabled:bg-transparent"
-              rows={1}
             />
           </div>
         );
@@ -302,14 +353,17 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
               placeholder="Code"
               disabled={!canEdit}
               className="w-full bg-transparent outline-none resize-none overflow-hidden"
-              rows={3}
               style={{ minHeight: '4rem' }}
             />
           </div>
         );
 
       case 'divider':
-        return <hr className="border-t-2 border-gray-300 my-4" />;
+        return (
+          <div className="my-4">
+            <hr className="border-t-2 border-gray-300" />
+          </div>
+        );
 
       case 'image':
         return (
@@ -322,12 +376,14 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
                   className="max-w-full border border-gray-200 rounded"
                 />
                 {canEdit && (
-                  <button
-                    onClick={() => onUpdate({ ...block, properties: { url: '' } })}
-                    className="absolute top-2 right-2 px-3 py-1 bg-white border border-gray-300 hover:border-black transition-colors text-sm opacity-0 group-hover:opacity-100"
-                  >
-                    Remove
-                  </button>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      onClick={() => onUpdate({ ...block, properties: { url: '' } })}
+                      className="px-3 py-1 bg-white border border-gray-300 hover:border-black transition-colors text-sm rounded"
+                    >
+                      Remove Image
+                    </button>
+                  </div>
                 )}
               </div>
             ) : (
@@ -407,13 +463,13 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
               <div className="flex gap-2 mt-2">
                 <button
                   onClick={addTableRow}
-                  className="px-3 py-1 border border-gray-300 hover:border-black transition-colors text-sm"
+                  className="px-3 py-1 border border-gray-300 hover:border-black transition-colors text-sm rounded"
                 >
                   + Add Row
                 </button>
                 <button
                   onClick={addTableColumn}
-                  className="px-3 py-1 border border-gray-300 hover:border-black transition-colors text-sm"
+                  className="px-3 py-1 border border-gray-300 hover:border-black transition-colors text-sm rounded"
                 >
                   + Add Column
                 </button>
@@ -432,7 +488,6 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
             placeholder="Type '/' for commands or start writing..."
             disabled={!canEdit}
             className="w-full outline-none resize-none overflow-hidden disabled:bg-transparent"
-            rows={1}
           />
         );
     }
@@ -444,12 +499,12 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
         <div className="absolute -left-12 top-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
           <button
             onClick={() => setShowMenu(!showMenu)}
-            className="p-1 hover:bg-gray-100 rounded"
-            title="Add block"
+            className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+            title="Click to open menu"
           >
             <Plus className="w-4 h-4" />
           </button>
-          <button className="p-1 hover:bg-gray-100 rounded cursor-move" title="Drag to reorder">
+          <button className="p-1.5 hover:bg-gray-100 rounded cursor-move transition-colors" title="Drag to reorder">
             <GripVertical className="w-4 h-4" />
           </button>
         </div>
@@ -459,54 +514,42 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
         {renderBlock()}
 
         {showMenu && canEdit && (
-          <div ref={menuRef} className="absolute top-full left-0 mt-2 bg-white border-2 border-black shadow-lg z-10 w-64 max-h-96 overflow-y-auto">
-            <div className="p-2">
-              <div className="text-xs font-bold text-gray-500 mb-2 px-2">BASIC BLOCKS</div>
-              {[
-                { type: 'paragraph' as const, icon: <Type className="w-4 h-4" />, label: 'Text', desc: 'Plain text' },
-                { type: 'heading1' as const, icon: <Heading1 className="w-4 h-4" />, label: 'Heading 1', desc: 'Large heading' },
-                { type: 'heading2' as const, icon: <Heading2 className="w-4 h-4" />, label: 'Heading 2', desc: 'Medium heading' },
-                { type: 'heading3' as const, icon: <Heading3 className="w-4 h-4" />, label: 'Heading 3', desc: 'Small heading' },
-                { type: 'bulletList' as const, icon: <List className="w-4 h-4" />, label: 'Bullet List', desc: 'Unordered list' },
-                { type: 'numberedList' as const, icon: <ListOrdered className="w-4 h-4" />, label: 'Numbered List', desc: 'Ordered list' },
-                { type: 'todo' as const, icon: <CheckSquare className="w-4 h-4" />, label: 'To-do List', desc: 'Checkbox list' },
-                { type: 'quote' as const, icon: <Quote className="w-4 h-4" />, label: 'Quote', desc: 'Blockquote' },
-                { type: 'code' as const, icon: <Code className="w-4 h-4" />, label: 'Code', desc: 'Code block' },
-                { type: 'divider' as const, icon: <Minus className="w-4 h-4" />, label: 'Divider', desc: 'Horizontal line' },
-              ].map((item) => (
-                <button
-                  key={item.type}
-                  onClick={() => changeBlockType(item.type)}
-                  className="w-full flex items-center gap-3 px-2 py-2 hover:bg-gray-100 text-left rounded"
-                >
-                  {item.icon}
-                  <div className="flex-1">
-                    <div className="font-medium text-sm">{item.label}</div>
-                    <div className="text-xs text-gray-500">{item.desc}</div>
+          <div ref={menuRef} className="absolute top-full left-0 mt-2 bg-white border border-gray-200 shadow-xl rounded-lg z-10 w-80 max-h-96 overflow-hidden">
+            <div className="p-3 border-b border-gray-200">
+              <input
+                type="text"
+                value={menuSearch}
+                onChange={(e) => setMenuSearch(e.target.value)}
+                placeholder="Search for a block type..."
+                className="w-full px-3 py-2 border border-gray-300 rounded outline-none focus:border-black transition-colors text-sm"
+                autoFocus
+              />
+            </div>
+            <div className="overflow-y-auto max-h-80">
+              {filteredBlockTypes.length > 0 ? (
+                filteredBlockTypes.map((category) => (
+                  <div key={category.category} className="p-2">
+                    <div className="text-xs font-semibold text-gray-500 mb-1 px-2">{category.category}</div>
+                    {category.items.map((item) => (
+                      <button
+                        key={item.type}
+                        onClick={() => changeBlockType(item.type)}
+                        className="w-full flex items-start gap-3 px-2 py-2.5 hover:bg-gray-100 text-left rounded transition-colors"
+                      >
+                        <div className="mt-0.5">{item.icon}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm text-gray-900">{item.label}</div>
+                          <div className="text-xs text-gray-500 mt-0.5">{item.desc}</div>
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                </button>
-              ))}
-              <div className="text-xs font-bold text-gray-500 mb-2 px-2 mt-2">MEDIA</div>
-              <button
-                onClick={() => changeBlockType('image')}
-                className="w-full flex items-center gap-3 px-2 py-2 hover:bg-gray-100 text-left rounded"
-              >
-                <ImageIcon className="w-4 h-4" />
-                <div className="flex-1">
-                  <div className="font-medium text-sm">Image</div>
-                  <div className="text-xs text-gray-500">Upload image</div>
+                ))
+              ) : (
+                <div className="p-8 text-center text-gray-500 text-sm">
+                  No blocks found for "{menuSearch}"
                 </div>
-              </button>
-              <button
-                onClick={() => changeBlockType('table')}
-                className="w-full flex items-center gap-3 px-2 py-2 hover:bg-gray-100 text-left rounded"
-              >
-                <Table className="w-4 h-4" />
-                <div className="flex-1">
-                  <div className="font-medium text-sm">Table</div>
-                  <div className="text-xs text-gray-500">Add a table</div>
-                </div>
-              </button>
+              )}
             </div>
           </div>
         )}
@@ -516,7 +559,7 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
         <div className="absolute -right-8 top-0 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             onClick={onDelete}
-            className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-red-600"
+            className="p-1.5 hover:bg-gray-100 rounded text-gray-400 hover:text-red-600 transition-colors"
             title="Delete block"
           >
             <Trash2 className="w-4 h-4" />
