@@ -7,21 +7,30 @@ export const Auth: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login, register } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
     if (!username || !password) {
       setError('Please fill in all fields');
+      setLoading(false);
       return;
     }
 
-    const success = isLogin ? login(username, password) : register(username, password);
-
-    if (!success) {
-      setError(isLogin ? 'Invalid credentials' : 'Username already exists');
+    try {
+      if (isLogin) {
+        await login(username, password);
+      } else {
+        await register(username, password);
+      }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -40,13 +49,19 @@ export const Auth: React.FC = () => {
           <div className="flex mb-6 border-b border-gray-300">
             <button
               className={`flex-1 pb-2 ${isLogin ? 'border-b-2 border-black font-semibold' : 'text-gray-500'}`}
-              onClick={() => setIsLogin(true)}
+              onClick={() => {
+                setIsLogin(true);
+                setError('');
+              }}
             >
               Login
             </button>
             <button
               className={`flex-1 pb-2 ${!isLogin ? 'border-b-2 border-black font-semibold' : 'text-gray-500'}`}
-              onClick={() => setIsLogin(false)}
+              onClick={() => {
+                setIsLogin(false);
+                setError('');
+              }}
             >
               Register
             </button>
@@ -61,6 +76,7 @@ export const Auth: React.FC = () => {
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:border-black"
                 placeholder="Enter username"
+                disabled={loading}
               />
             </div>
 
@@ -72,6 +88,7 @@ export const Auth: React.FC = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:border-black"
                 placeholder="Enter password"
+                disabled={loading}
               />
             </div>
 
@@ -83,11 +100,17 @@ export const Auth: React.FC = () => {
 
             <button
               type="submit"
-              className="w-full bg-black text-white py-2 px-4 hover:bg-gray-800 transition-colors"
+              disabled={loading}
+              className="w-full bg-black text-white py-2 px-4 hover:bg-gray-800 transition-colors disabled:bg-gray-400"
             >
-              {isLogin ? 'Login' : 'Register'}
+              {loading ? 'Processing...' : (isLogin ? 'Login' : 'Register')}
             </button>
           </form>
+
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 text-sm text-blue-800">
+            <p className="font-semibold mb-1">First time here?</p>
+            <p>Click "Register" to create a new account</p>
+          </div>
         </div>
       </div>
     </div>
