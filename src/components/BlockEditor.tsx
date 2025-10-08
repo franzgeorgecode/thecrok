@@ -16,8 +16,7 @@ import {
   GripVertical,
   Plus,
   Trash2,
-  Upload,
-  RefreshCw
+  Upload
 } from 'lucide-react';
 
 interface BlockEditorProps {
