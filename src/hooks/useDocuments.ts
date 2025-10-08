@@ -12,12 +12,19 @@ export const useDocuments = (userId: string | undefined) => {
 
   const loadDocuments = async () => {
     try {
+      console.log('Loading documents...');
+      
       const { data: dbDocuments, error: docsError } = await supabase
         .from('documents')
         .select('*')
         .order('last_edited_at', { ascending: false });
 
-      if (docsError) throw docsError;
+      if (docsError) {
+        console.error('Error loading documents:', docsError);
+        throw docsError;
+      }
+
+      console.log('Documents loaded:', dbDocuments?.length || 0);
 
       const documentsWithBlocks = await Promise.all(
         (dbDocuments || []).map(async (doc: DBDocument) => {
@@ -65,6 +72,8 @@ export const useDocuments = (userId: string | undefined) => {
 
   const createDocument = async (doc: Omit<Document, 'id' | 'createdAt' | 'lastEditedAt'>) => {
     try {
+      console.log('Creating document:', doc.title);
+      
       const { data: newDoc, error: docError } = await supabase
         .from('documents')
         .insert([{
@@ -79,9 +88,16 @@ export const useDocuments = (userId: string | undefined) => {
         .select()
         .single();
 
-      if (docError) throw docError;
+      if (docError) {
+        console.error('Error creating document:', docError);
+        throw docError;
+      }
+
+      console.log('Document created successfully:', newDoc.id);
 
       if (doc.blocks && doc.blocks.length > 0) {
+        console.log('Inserting blocks:', doc.blocks.length);
+        
         const { error: blocksError } = await supabase
           .from('blocks')
           .insert(
@@ -94,10 +110,17 @@ export const useDocuments = (userId: string | undefined) => {
             }))
           );
 
-        if (blocksError) throw blocksError;
+        if (blocksError) {
+          console.error('Error creating blocks:', blocksError);
+          throw blocksError;
+        }
+        
+        console.log('Blocks created successfully');
       }
 
       if (doc.tags && doc.tags.length > 0) {
+        console.log('Inserting tags:', doc.tags.length);
+        
         const { error: tagsError } = await supabase
           .from('tags')
           .insert(
@@ -107,19 +130,27 @@ export const useDocuments = (userId: string | undefined) => {
             }))
           );
 
-        if (tagsError) throw tagsError;
+        if (tagsError) {
+          console.error('Error creating tags:', tagsError);
+          throw tagsError;
+        }
+        
+        console.log('Tags created successfully');
       }
 
       await loadDocuments();
       return documents.find(d => d.id === newDoc.id);
     } catch (error) {
       console.error('Error creating document:', error);
+      alert('Error al guardar el documento. Verifica la consola para más detalles.');
       throw error;
     }
   };
 
   const updateDocument = async (id: string, updates: Partial<Document>) => {
     try {
+      console.log('Updating document:', id);
+      
       const dbUpdates: any = {
         last_edited_at: new Date().toISOString()
       };
@@ -135,9 +166,16 @@ export const useDocuments = (userId: string | undefined) => {
         .update(dbUpdates)
         .eq('id', id);
 
-      if (docError) throw docError;
+      if (docError) {
+        console.error('Error updating document:', docError);
+        throw docError;
+      }
+
+      console.log('Document updated successfully');
 
       if (updates.blocks) {
+        console.log('Updating blocks...');
+        
         await supabase.from('blocks').delete().eq('document_id', id);
 
         if (updates.blocks.length > 0) {
@@ -153,11 +191,18 @@ export const useDocuments = (userId: string | undefined) => {
               }))
             );
 
-          if (blocksError) throw blocksError;
+          if (blocksError) {
+            console.error('Error updating blocks:', blocksError);
+            throw blocksError;
+          }
+          
+          console.log('Blocks updated successfully');
         }
       }
 
       if (updates.tags !== undefined) {
+        console.log('Updating tags...');
+        
         await supabase.from('tags').delete().eq('document_id', id);
 
         if (updates.tags.length > 0) {
@@ -170,26 +215,38 @@ export const useDocuments = (userId: string | undefined) => {
               }))
             );
 
-          if (tagsError) throw tagsError;
+          if (tagsError) {
+            console.error('Error updating tags:', tagsError);
+            throw tagsError;
+          }
+          
+          console.log('Tags updated successfully');
         }
       }
 
       await loadDocuments();
     } catch (error) {
       console.error('Error updating document:', error);
+      alert('Error al actualizar el documento. Verifica la consola para más detalles.');
       throw error;
     }
   };
 
   const deleteDocument = async (id: string) => {
     try {
+      console.log('Deleting document:', id);
+      
       const { error } = await supabase
         .from('documents')
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting document:', error);
+        throw error;
+      }
 
+      console.log('Document deleted successfully');
       await loadDocuments();
     } catch (error) {
       console.error('Error deleting document:', error);
