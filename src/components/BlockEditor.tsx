@@ -15,7 +15,9 @@ import {
   Heading3,
   GripVertical,
   Plus,
-  Trash2
+  Trash2,
+  Upload,
+  RefreshCw
 } from 'lucide-react';
 
 interface BlockEditorProps {
@@ -34,10 +36,12 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
   canEdit
 }) => {
   const [showMenu, setShowMenu] = useState(false);
+  const [showImageMenu, setShowImageMenu] = useState(false);
   const [content, setContent] = useState(block.content);
   const [menuSearch, setMenuSearch] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const imageMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setContent(block.content);
@@ -49,16 +53,19 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
         setShowMenu(false);
         setMenuSearch('');
       }
+      if (imageMenuRef.current && !imageMenuRef.current.contains(event.target as Node)) {
+        setShowImageMenu(false);
+      }
     };
 
-    if (showMenu) {
+    if (showMenu || showImageMenu) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showMenu]);
+  }, [showMenu, showImageMenu]);
 
   useEffect(() => {
     if (inputRef.current) {
@@ -113,19 +120,37 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
     }, 0);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, isReplace: boolean = false) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      onUpdate({
-        ...block,
-        type: 'image',
-        properties: { url: reader.result as string }
-      });
+      if (isReplace) {
+        onUpdate({
+          ...block,
+          properties: { url: reader.result as string }
+        });
+      } else {
+        onUpdate({
+          ...block,
+          type: 'image',
+          properties: { url: reader.result as string }
+        });
+      }
+      setShowImageMenu(false);
     };
     reader.readAsDataURL(file);
+  };
+
+  const deleteImage = () => {
+    onUpdate({
+      ...block,
+      type: 'paragraph',
+      content: '',
+      properties: {}
+    });
+    setShowImageMenu(false);
   };
 
   const toggleTodo = () => {
@@ -376,13 +401,50 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
                   className="max-w-full border border-gray-200 rounded"
                 />
                 {canEdit && (
-                  <div className="mt-2 flex gap-2">
+                  <div className="relative mt-2">
                     <button
-                      onClick={() => onUpdate({ ...block, properties: { url: '' } })}
-                      className="px-3 py-1 bg-white border border-gray-300 hover:border-black transition-colors text-sm rounded"
+                      onClick={() => setShowImageMenu(!showImageMenu)}
+                      className="px-3 py-1 bg-white border border-gray-300 hover:border-black transition-colors text-sm rounded flex items-center gap-2"
                     >
-                      Remove Image
+                      <ImageIcon className="w-4 h-4" />
+                      Manage Image
                     </button>
+                    
+                    {showImageMenu && (
+                      <div ref={imageMenuRef} className="absolute top-full left-0 mt-2 bg-white border border-gray-200 shadow-xl rounded-lg z-10 w-64 overflow-hidden">
+                        <div className="p-2">
+                          <label className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-100 text-left rounded transition-colors cursor-pointer">
+                            <Upload className="w-4 h-4" />
+                            <span className="text-sm">Replace Image</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => handleImageUpload(e, true)}
+                              className="hidden"
+                            />
+                          </label>
+                          
+                          <button
+                            onClick={() => {
+                              onAddBelow();
+                              setShowImageMenu(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-100 text-left rounded transition-colors"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span className="text-sm">Add Block Below</span>
+                          </button>
+                          
+                          <button
+                            onClick={deleteImage}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-red-50 text-red-600 text-left rounded transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <span className="text-sm">Delete Image</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -394,7 +456,7 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={handleImageUpload}
+                    onChange={(e) => handleImageUpload(e, false)}
                     className="hidden"
                   />
                 </label>
@@ -496,25 +558,25 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
   return (
     <div className="group relative py-1">
       {canEdit && (
-        <div className="absolute -left-12 top-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+        <div className="absolute left-0 sm:-left-12 top-0 flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10">
           <button
             onClick={() => setShowMenu(!showMenu)}
-            className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+            className="p-1.5 hover:bg-gray-100 rounded transition-colors touch-manipulation"
             title="Click to open menu"
           >
             <Plus className="w-4 h-4" />
           </button>
-          <button className="p-1.5 hover:bg-gray-100 rounded cursor-move transition-colors" title="Drag to reorder">
+          <button className="hidden sm:block p-1.5 hover:bg-gray-100 rounded cursor-move transition-colors" title="Drag to reorder">
             <GripVertical className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      <div className="relative">
+      <div className="relative pl-10 sm:pl-0">
         {renderBlock()}
 
         {showMenu && canEdit && (
-          <div ref={menuRef} className="absolute top-full left-0 mt-2 bg-white border border-gray-200 shadow-xl rounded-lg z-10 w-80 max-h-96 overflow-hidden">
+          <div ref={menuRef} className="fixed sm:absolute top-1/2 left-1/2 sm:top-full sm:left-0 -translate-x-1/2 -translate-y-1/2 sm:translate-x-0 sm:translate-y-0 sm:mt-2 bg-white border border-gray-200 shadow-xl rounded-lg z-50 w-[90vw] sm:w-80 max-h-[80vh] sm:max-h-96 overflow-hidden">
             <div className="p-3 border-b border-gray-200">
               <input
                 type="text"
@@ -525,7 +587,7 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
                 autoFocus
               />
             </div>
-            <div className="overflow-y-auto max-h-80">
+            <div className="overflow-y-auto max-h-[calc(80vh-80px)] sm:max-h-80">
               {filteredBlockTypes.length > 0 ? (
                 filteredBlockTypes.map((category) => (
                   <div key={category.category} className="p-2">
@@ -534,7 +596,7 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
                       <button
                         key={item.type}
                         onClick={() => changeBlockType(item.type)}
-                        className="w-full flex items-start gap-3 px-2 py-2.5 hover:bg-gray-100 text-left rounded transition-colors"
+                        className="w-full flex items-start gap-3 px-2 py-2.5 hover:bg-gray-100 active:bg-gray-200 text-left rounded transition-colors touch-manipulation"
                       >
                         <div className="mt-0.5">{item.icon}</div>
                         <div className="flex-1 min-w-0">
@@ -556,10 +618,10 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
       </div>
 
       {canEdit && (
-        <div className="absolute -right-8 top-0 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute right-0 sm:-right-8 top-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
           <button
             onClick={onDelete}
-            className="p-1.5 hover:bg-gray-100 rounded text-gray-400 hover:text-red-600 transition-colors"
+            className="p-1.5 hover:bg-gray-100 rounded text-gray-400 hover:text-red-600 transition-colors touch-manipulation"
             title="Delete block"
           >
             <Trash2 className="w-4 h-4" />
